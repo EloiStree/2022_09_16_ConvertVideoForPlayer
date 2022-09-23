@@ -1,4 +1,5 @@
 using Eloi;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -9,10 +10,25 @@ public class ConvertVideoAtPathToUnityPlayer : MonoBehaviour
     public string[] m_fileToConvert;
     public string m_resultFolder;
     public string m_ffmpegPath;
+    public string m_endVideoTag = "_C";
 
     public int m_width= 4096;
     public int m_height= 4096;
 
+    public float m_timeBetweenLauncInSeconds;
+
+    public void SetTimeWithDropBox(int value)
+    {
+
+        switch (value)
+        {
+            case 0: m_timeBetweenLauncInSeconds = 600 * 0; break;
+            case 1: m_timeBetweenLauncInSeconds = 600 * 1;  break;
+            case 2: m_timeBetweenLauncInSeconds = 600 * 2;  break;
+            default:
+                break;
+        }
+    }
 
     public void SetResolutionDropBox(int value) {
 
@@ -77,28 +93,45 @@ public class ConvertVideoAtPathToUnityPlayer : MonoBehaviour
     [ContextMenu("Convert Test")]
     public void Convert()
     {
+        if (m_coroutine != null) {
+            StopCoroutine(m_coroutine);
+        }
+        m_coroutine = StartCoroutine(C_Convert());
+    }
+    public Coroutine m_coroutine;
+    public List<string> m_pathToConvert = new List<string>();
+    private IEnumerator C_Convert()
+    {
+        m_pathToConvert.Clear();
         foreach (string item in m_fileToConvert)
         {
-
             if (File.Exists(item))
             {
-                ConvertPath(item);
+                m_pathToConvert.Add(item);
+                
             }
-            else if (Directory.Exists(item)) {
-                string [] paths = Directory.GetFiles(item,"*", SearchOption.AllDirectories);
-                foreach (var pitem in paths)
-                {
-                    ConvertPath(pitem);
-                }
+            else if (Directory.Exists(item))
+            {
+                string[] paths = Directory.GetFiles(item, "*", SearchOption.AllDirectories);
+                m_pathToConvert.AddRange(paths);
+                
             }
         }
+        foreach (var item in m_pathToConvert)
+        {
+            ConvertPath(item);
+            yield return new WaitForSeconds(m_timeBetweenLauncInSeconds);
+            yield return new WaitForEndOfFrame();
+
+        }
+        yield return new WaitForEndOfFrame();
     }
 
     private void ConvertPath(string item)
     {
         fileToConvert = new MetaFileNameWithExtension(Path.GetFileName(item));
         fileToConvert.GetFileNameWithoutExtension(out string name);
-        fileConverted = new MetaFileNameWithExtension(name + "_C4k", "mp4");
+        fileConverted = new MetaFileNameWithExtension(name +m_endVideoTag, "mp4");
         fileToConvert.GetFileNameWithoutExtension(out string nameC);
         fileConvertedNoExt = new MetaFileNameWithoutExtension(nameC);
         whereToStore = new MetaAbsolutePathDirectory(m_resultFolder.Length == 0 ? Path.GetDirectoryName(item) : m_resultFolder);
